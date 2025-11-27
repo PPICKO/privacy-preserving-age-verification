@@ -1,0 +1,24 @@
+path: C:/Users/branq/Desktop/thesis
+train: images/train
+val: images/val
+
+names:
+  0: DOB
+  1: GivenName
+  2: Photo
+  3: Surname
+
+# === Data augmentation settings ===
+augment:
+  hsv_h: 0.015      # color hue augmentation
+  hsv_s: 0.7        # color saturation
+  hsv_v: 0.4        # brightness variation
+  degrees: 15       # random rotation (simulate tilted cards)
+  translate: 0.1    # shift image 10%
+  scale: 0.5        # zoom in/out
+  shear: 10.0       # shearing
+  perspective: 0.0005  # perspective warp
+  flipud: 0.0       # vertical flip (disabled for ID cards)
+  fliplr: 0.5       # horizontal flip (simulate mirrored images)
+  mosaic: 1.0       # mosaic augmentation (combines 4 images)
+  mixup: 0.1        # mixup (overlay 2 images)

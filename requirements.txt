@@ -1,0 +1,27 @@
+# Privacy-Preserving Age Verification System
+# Requirements file for pip installation
+
+# Core ML Framework
+ultralytics>=8.0.0          # YOLOv8 object detection
+torch>=2.0.0                # PyTorch deep learning framework
+torchvision>=0.15.0         # PyTorch vision utilities
+torchaudio>=2.0.0           # PyTorch audio (optional, for completeness)
+
+# Computer Vision
+opencv-python>=4.8.0        # Image processing
+easyocr>=1.7.0              # Optical character recognition
+
+# Token System
+PyJWT>=2.8.0                # JWT token generation/validation
+cryptography>=41.0.0        # RSA key generation and signing
+
+# Utilities
+numpy>=1.24.0               # Numerical computing
+Pillow>=10.0.0              # Image handling
+python-dateutil>=2.8.0      # Date parsing utilities
+qrcode>=7.4.0               # QR code generation
+
+# Optional: For development/testing
+# pytest>=7.0.0             # Testing framework
+# black>=23.0.0             # Code formatting
+# flake8>=6.0.0             # Linting
