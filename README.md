@@ -292,7 +292,7 @@ This project is part of a Master's thesis at Université Libre de Bruxelles.
 If you use this work, please cite:
 
 ```bibtex
-@mastersthesis{,
+@mastersthesis{pintoickowicz2026privacy,
   title={Privacy-Preserving Age Verification under GDPR: 
          AI-Based Identity Extraction and Encrypted Token Exchange},
   author={Pinto Ickowicz, Priscila},
