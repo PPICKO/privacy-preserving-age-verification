@@ -1,3 +1,19 @@
+"""
+ID Card Detection System
+Main detection pipeline using YOLOv8 and EasyOCR for age verification.
+
+For thesis: "Privacy-Preserving Age Verification under GDPR"
+Author: Priscila PINTO ICKOWICZ
+
+Usage:
+    python id_detection.py
+    
+Controls:
+    - Hold ID card in front of webcam
+    - System auto-captures when DOB and Photo fields are detected
+    - Press 'q' to quit
+"""
+
 import os
 import re
 import cv2
@@ -15,7 +31,7 @@ import easyocr
 @dataclass
 class Config:
     """Configuration for ID card detection system"""
-    MODEL_PATH = r"C:\Users\branq\Desktop\thesis\my_model.pt"
+    MODEL_PATH = r"\my_model.pt"
     OUTPUT_DIR: str = "outputs"
     CLASS_NAMES: List[str] = None
     THRESHOLDS: Dict[str, float] = None
@@ -812,9 +828,9 @@ class IDCardDetector:
             cv2.destroyAllWindows()
             self.logger.info("Webcam session ended")
             if self.successful_snapshot:
-                self.logger.info(f"✓ Session completed successfully after {self.snapshot_count} attempt(s)")
+                self.logger.info(f"Session completed successfully after {self.snapshot_count} attempt(s)")
             else:
-                self.logger.info(f"✗ Session ended without successful age determination ({self.snapshot_count} attempts made)")
+                self.logger.info(f"Session ended without successful age determination ({self.snapshot_count} attempts made)")
 
 # === ENTRY POINT ===
 def main():

@@ -1,108 +1,181 @@
 """
-Integration Module: ID Detection + Token Generation
-Connects the webcam ID detection pipeline with the cryptographic token system
-
-This integrates:
-1. Your existing ID detection code (YOLOv8 + OCR)
-2. The new token generation system (JWT + RSA)
+Integrated System Module
+Connects ID detection pipeline with cryptographic token generation.
 
 For thesis: "Privacy-Preserving Age Verification under GDPR"
+Author: Priscila PINTO ICKOWICZ
+
+This module integrates:
+1. ID detection (YOLOv8 + OCR)
+2. Token generation (JWT + RSA)
+3. GDPR-compliant data handling
+
+Usage:
+    python integrated_system.py --demo
+    python integrated_system.py --audience "website.com"
 """
 
 import sys
-from pathlib import Path
-from dataclasses import dataclass
-from typing import Dict, Optional
 import shutil
 import logging
+import argparse
+from dataclasses import dataclass, field
+from datetime import datetime
+from pathlib import Path
+from typing import Dict, Optional, List
 
-# Import from your existing ID detection code
-# (assuming it's in the same directory or importable)
-# from your_id_detection_file import AgeInfo, IDCardDetector, Config as DetectionConfig
+# Import token system
+try:
+    from token_system import AgeVerificationToken, TokenConfig, TokenValidator
+    TOKEN_IMPORT_SUCCESS = True
+except ImportError:
+    TOKEN_IMPORT_SUCCESS = False
+    print("Warning: token_system.py not found in current directory")
 
-# Import the token system
-from token_system import AgeVerificationToken, TokenConfig, TokenValidator
 
+# ============================================================================
+# CONFIGURATION
+# ============================================================================
 
 @dataclass
 class IntegratedSystemConfig:
     """Combined configuration for detection + token system"""
-    # Detection settings (from your original code)
-    model_path: str = r"C:\my_model.pt"
+    # Detection settings
+    model_path: str = r"C:\Users\branq\Desktop\thesis\my_model.pt"
     camera_index: int = 0
     max_retry_attempts: int = 5
+    detection_threshold: float = 0.80
     
     # Token settings
     token_validity_days: int = 30
     enable_device_binding: bool = True
     include_names_in_token: bool = False  # Privacy: names optional
+    token_issuer: str = "AgeVerification-Thesis-System"
     
     # Output settings
     output_dir: str = "outputs"
-    delete_snapshots_after_token: bool = True  # GDPR: immediate deletion
+    
+    # Privacy settings (GDPR compliance)
+    delete_snapshots_after_token: bool = True  # Immediate deletion
+    include_age_value: bool = False  # Only store is_adult boolean
+    
+    # Logging
+    log_level: str = "INFO"
 
+
+# ============================================================================
+# DATA MODELS
+# ============================================================================
+
+@dataclass
+class AgeInfo:
+    """Age calculation result (matches id_detection.py)"""
+    dob_parsed: Optional[str] = None
+    age_years: Optional[int] = None
+    status: str = "unknown"  # "adult", "minor", or "unknown"
+    
+    def is_adult(self) -> bool:
+        return self.age_years is not None and self.age_years >= 18
+
+
+@dataclass
+class VerificationResult:
+    """Complete verification result"""
+    success: bool = False
+    is_adult: Optional[bool] = None
+    age_years: Optional[int] = None
+    token_data: Optional[Dict] = None
+    message: str = ""
+    error: Optional[str] = None
+
+
+# ============================================================================
+# INTEGRATED SYSTEM
+# ============================================================================
 
 class PrivacyPreservingAgeVerification:
     """
     Complete privacy-preserving age verification system.
     
     Workflow:
-    1. Capture ID from webcam (your existing code)
+    1. Capture ID from webcam (detection module)
     2. Detect DOB + names using YOLOv8 + OCR
     3. Calculate age
-    4. If adult: generate encrypted token
+    4. If verified: generate encrypted token
     5. IMMEDIATELY delete all ID images and OCR data
     6. Return token to user (QR code + text)
     """
     
     def __init__(self, config: IntegratedSystemConfig = None):
         self.config = config or IntegratedSystemConfig()
-        self.logger = logging.getLogger(__name__)
+        self.logger = self._setup_logging()
+        self.token_generator = None
         
         # Initialize token generator
+        self._setup_token_generator()
+        
+        self.logger.info("Privacy-Preserving Age Verification System initialized")
+    
+    def _setup_logging(self) -> logging.Logger:
+        """Setup logging configuration"""
+        logging.basicConfig(
+            level=getattr(logging, self.config.log_level.upper()),
+            format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+        )
+        return logging.getLogger(__name__)
+    
+    def _setup_token_generator(self):
+        """Initialize token generation system"""
+        if not TOKEN_IMPORT_SUCCESS:
+            self.logger.error("Token system not available")
+            return
+        
         token_config = TokenConfig(
             VALIDITY_DAYS=self.config.token_validity_days,
             ENABLE_DEVICE_BINDING=self.config.enable_device_binding,
             INCLUDE_NAME_IN_TOKEN=self.config.include_names_in_token,
-            INCLUDE_AGE_VALUE=False,  # Privacy: don't include actual age
+            INCLUDE_AGE_VALUE=self.config.include_age_value,
         )
         self.token_generator = AgeVerificationToken(token_config)
-        
-        self.logger.info("Privacy-Preserving Age Verification System initialized")
     
-    def process_verification_result(
+    def process_verification(
         self,
-        age_info,  # AgeInfo object from your detection code
+        age_info: AgeInfo,
         ocr_results: Dict,
-        snap_dir: Path,
+        snap_dir: Optional[Path] = None,
         audience: str = "default"
-    ) -> Dict:
+    ) -> VerificationResult:
         """
         Process verification result and generate token.
         
         Args:
             age_info: AgeInfo object with age calculation results
             ocr_results: OCR results (names, etc.)
-            snap_dir: Snapshot directory to delete
+            snap_dir: Snapshot directory to delete (optional)
             audience: Target website/service identifier
         
         Returns:
-            Result dictionary with token or error
+            VerificationResult with token or error
         """
+        result = VerificationResult()
+        
         try:
             # Check if age was successfully determined
             if age_info.status == 'unknown':
                 self.logger.warning("Age determination failed - cannot issue token")
-                return {
-                    "success": False,
-                    "reason": "Could not determine age from ID",
-                    "token": None
-                }
+                result.message = "Could not determine age from ID"
+                return result
+            
+            # Check token generator
+            if self.token_generator is None:
+                self.logger.error("Token generator not initialized")
+                result.error = "Token system not available"
+                return result
             
             # Determine if user is adult
             is_adult = (age_info.status == 'adult')
             
-            # Extract names (if available and configured)
+            # Extract names (if configured)
             given_name = None
             surname = None
             if self.config.include_names_in_token and ocr_results:
@@ -110,7 +183,7 @@ class PrivacyPreservingAgeVerification:
                 surname = ocr_results.get('Surname', [None])[0]
             
             # Generate token
-            self.logger.info(f"Generating token for {'ADULT' if is_adult else 'MINOR'} user")
+            self.logger.info(f"Generating token for {'ADULT' if is_adult else 'MINOR'}")
             token_data = self.token_generator.generate_token(
                 is_adult=is_adult,
                 age_years=age_info.age_years,
@@ -119,188 +192,111 @@ class PrivacyPreservingAgeVerification:
                 audience=audience
             )
             
-            # CRITICAL: Delete all sensitive data immediately
-            if self.config.delete_snapshots_after_token:
-                self._secure_delete_snapshot(snap_dir)
+            # CRITICAL: Delete sensitive data immediately (GDPR compliance)
+            if self.config.delete_snapshots_after_token and snap_dir:
+                self._secure_delete(snap_dir)
             
-            self.logger.info(
-                f"✓ Token issued successfully. Token ID: {token_data['token_id'][:16]}..."
-            )
-            self.logger.info(f"✓ All ID images and OCR data deleted (GDPR compliance)")
+            # Build result
+            result.success = True
+            result.is_adult = is_adult
+            result.age_years = age_info.age_years
+            result.token_data = token_data
+            result.message = "Age verified successfully. Token generated."
             
-            return {
-                "success": True,
-                "is_adult": is_adult,
-                "age_years": age_info.age_years,
-                "token_data": token_data,
-                "message": "Age verified successfully. Token generated."
-            }
-        
+            self.logger.info(f"✓ Token issued: {token_data['token_id'][:16]}...")
+            
         except Exception as e:
-            self.logger.error(f"Error processing verification: {e}", exc_info=True)
-            return {
-                "success": False,
-                "reason": f"Token generation failed: {str(e)}",
-                "token": None
-            }
-    
-    def _secure_delete_snapshot(self, snap_dir: Path):
-        """
-        Securely delete snapshot directory containing sensitive data.
+            self.logger.error(f"Verification error: {e}", exc_info=True)
+            result.error = str(e)
         
-        This implements GDPR storage limitation:
+        return result
+    
+    def _secure_delete(self, path: Path):
+        """
+        Securely delete directory containing sensitive data.
+        
+        Implements GDPR storage limitation:
         - No images persisted
         - No OCR text stored
-        - Only token remains (which contains no personal data)
+        - Only token remains
         """
-        if snap_dir.exists():
+        if path and path.exists():
             try:
-                # Delete entire directory
-                shutil.rmtree(snap_dir)
-                self.logger.info(f"Deleted snapshot directory: {snap_dir}")
-                
-                # For extra security, could overwrite files before deletion
-                # (prevents recovery from disk)
-                # This is optional but recommended for high-security applications
-                
+                shutil.rmtree(path)
+                self.logger.info(f"Deleted sensitive data: {path}")
             except Exception as e:
-                self.logger.error(f"Error deleting snapshot: {e}")
+                self.logger.error(f"Delete failed: {e}")
     
-    def display_token_to_user(self, token_data: Dict):
-        """
-        Display token to user in a user-friendly way.
-        
-        In a real application, this would:
-        - Show QR code on screen
-        - Allow user to save token
-        - Provide instructions for using token
-        """
+    def display_token(self, token_data: Dict):
+        """Display token information to user"""
         print("\n" + "=" * 70)
         print("                   AGE VERIFICATION SUCCESSFUL")
         print("=" * 70)
-        print(f"\n✓ Your age has been verified")
-        print(f"✓ Token valid until: {token_data['expires_at']}")
-        print(f"✓ Token ID: {token_data['token_id'][:16]}...")
-        print(f"\nQR Code saved: {token_data['qr_code_path']}")
-        print(f"\nYou can use this token to access age-restricted content")
-        print(f"for the next {token_data['validity_days']} days.")
-        print("\n⚠️  PRIVACY NOTICE:")
-        print("   - All ID images have been DELETED")
-        print("   - No personal data is stored")
-        print("   - Token contains only your age verification status")
-        print("   - Token is device-specific (cannot be shared)")
+        print(f"\n Your age has been verified")
+        print(f"Token valid until: {token_data['expires_at']}")
+        print(f"Token ID: {token_data['token_id'][:16]}...")
+        
+        if 'qr_code_path' in token_data:
+            print(f"\n  QR Code saved: {token_data['qr_code_path']}")
+        
+        print(f"\n  You can use this token for {token_data['validity_days']} days.")
+        
+        print("\n PRIVACY NOTICE:")
+        print(" All ID images have been DELETED")
+        print(" No personal data is stored")
+        print(" Token contains only verification status")
+        print(" Token is device-specific")
         print("=" * 70 + "\n")
     
-    def get_public_key_for_websites(self) -> str:
-        """
-        Get public key for websites to verify tokens.
-        
-        Websites need this to verify tokens without contacting
-        the verification system (privacy-preserving).
-        """
-        return self.token_generator.get_public_key_for_verification()
+    def get_public_key(self) -> Optional[str]:
+        """Get public key for third-party validation"""
+        if self.token_generator:
+            return self.token_generator.get_public_key_for_verification()
+        return None
 
 
-# === EXAMPLE: MODIFIED DETECTOR CLASS ===
-class IDCardDetectorWithTokens:
+# ============================================================================
+# DEMO WORKFLOW
+# ============================================================================
+
+def run_demo():
     """
-    Modified version of your IDCardDetector class that integrates tokens.
-    
-    This is a template showing how to modify your existing run() method.
-    """
-    
-    def __init__(self, detection_config, integrated_config=None):
-        # Initialize your existing detector
-        # self.detector = IDCardDetector(detection_config)  # Your original class
-        
-        # Initialize integrated system
-        self.verification_system = PrivacyPreservingAgeVerification(integrated_config)
-        self.logger = logging.getLogger(__name__)
-    
-    def run(self, audience: str = "default"):
-        """
-        Modified run method that generates tokens after successful detection.
-        
-        This replaces your original run() method.
-        """
-        # Your existing webcam capture and detection loop
-        # ... (keep all your existing code) ...
-        
-        # MODIFICATION POINT: After successful age detection
-        # (In your original code, this is where you save the snapshot)
-        
-        """
-        # Original code was:
-        if age_info.status == 'adult':
-            self.logger.info(f"Age calculated: {age_info.age_years} years → ADULT")
-            # ... save files ...
-        
-        # NEW CODE: Generate token and delete snapshot
-        """
-        
-        # if self.successful_snapshot:
-        #     # Get the age_info and ocr_results from your detection
-        #     # Get the snap_dir Path
-        #     
-        #     # Generate token
-        #     result = self.verification_system.process_verification_result(
-        #         age_info=age_info,
-        #         ocr_results=ocr_results,
-        #         snap_dir=snap_dir,
-        #         audience=audience
-        #     )
-        #     
-        #     if result["success"]:
-        #         # Display token to user
-        #         self.verification_system.display_token_to_user(result["token_data"])
-        #         
-        #         # User can now use this token for age-restricted access
-        #         # All ID data has been deleted
-        #         
-        #         break  # Exit loop, verification complete
-        
-        pass  # Placeholder
-
-
-# === DEMO: COMPLETE WORKFLOW ===
-def demo_complete_workflow():
-    """
-    Demonstration of complete workflow:
-    1. ID detection
-    2. Token generation
-    3. Snapshot deletion
-    4. Website validation
+    Demonstrate complete workflow:
+    1. Simulate ID detection
+    2. Generate token
+    3. Validate token
     """
     print("\n" + "=" * 70)
-    print("  DEMO: Privacy-Preserving Age Verification - Complete Workflow")
+    print("   DEMO: Privacy-Preserving Age Verification")
     print("=" * 70)
     
-    # Step 1: Simulate ID detection result
-    print("\n[1] ID Detection (YOLOv8 + OCR)")
-    print("    Simulating webcam capture and detection...")
+    if not TOKEN_IMPORT_SUCCESS:
+        print("\n Cannot run demo: token_system.py not found")
+        print("Make sure token_system.py is in the same directory")
+        return
     
-    # Create a mock AgeInfo object (in reality, from your detector)
-    from dataclasses import dataclass
+    # Step 1: Simulate detection result
+    print("\n[1] ID Detection (Simulated)")
+    print("Simulating YOLOv8 + OCR detection...")
     
-    @dataclass
-    class MockAgeInfo:
-        dob_parsed: str = "1990-05-15"
-        age_years: int = 34
-        status: str = "adult"
+    age_info = AgeInfo(
+        dob_parsed="1990-05-15",
+        age_years=34,
+        status="adult"
+    )
     
-    age_info = MockAgeInfo()
     ocr_results = {
         "GivenName": ["John"],
         "Surname": ["Doe"],
         "DOB": ["15/05/1990"]
     }
     
-    print(f"    ✓ DOB detected: {age_info.dob_parsed}")
-    print(f"    ✓ Age calculated: {age_info.age_years} years")
-    print(f"    ✓ Status: {age_info.status.upper()}")
+    print(f" DOB detected: {age_info.dob_parsed}")
+    print(f" Age calculated: {age_info.age_years} years")
+    print(f" Status: {age_info.status.upper()}")
     
-    # Step 2: Generate token and delete data
-    print("\n[2] Token Generation & Data Deletion")
+    # Step 2: Generate token
+    print("\n[2] Token Generation")
     
     config = IntegratedSystemConfig(
         token_validity_days=30,
@@ -309,69 +305,104 @@ def demo_complete_workflow():
         delete_snapshots_after_token=True
     )
     
-    verification_system = PrivacyPreservingAgeVerification(config)
+    system = PrivacyPreservingAgeVerification(config)
     
-    # Create a mock snapshot directory
-    snap_dir = Path("outputs/snapshot_mock")
-    snap_dir.mkdir(parents=True, exist_ok=True)
-    
-    # Process verification
-    result = verification_system.process_verification_result(
+    result = system.process_verification(
         age_info=age_info,
         ocr_results=ocr_results,
-        snap_dir=snap_dir,
+        snap_dir=None,  # No actual files in demo
         audience="adult-website.com"
     )
     
-    if result["success"]:
-        verification_system.display_token_to_user(result["token_data"])
-        token = result["token_data"]["token"]
+    if result.success:
+        system.display_token(result.token_data)
+        token = result.token_data["token"]
     else:
-        print(f"✗ Verification failed: {result['reason']}")
+        print(f" Verification failed: {result.error or result.message}")
         return
     
-    # Step 3: Website validates token
+    # Step 3: Validate token (simulating website)
     print("\n[3] Website Token Validation")
-    print("    User visits adult-website.com and presents token...")
+    print("    User presents token to adult-website.com...")
     
-    public_key = verification_system.get_public_key_for_websites()
+    public_key = system.get_public_key()
     validator = TokenValidator(
         public_key_pem=public_key,
-        expected_issuer="AgeVerification-Thesis-System"
+        expected_issuer=config.token_issuer
     )
     
-    validation_result = validator.validate_token(
+    validation = validator.validate_token(
         token=token,
         audience="adult-website.com"
     )
     
-    if validation_result["valid"] and validation_result["access_granted"]:
-        print("    ✓ Token validated successfully")
-        print("    ✓ User granted access to age-restricted content")
-        print("    ✓ Website learned ONLY: 'user is adult'")
-        print("    ✓ Website did NOT receive: ID image, DOB, name")
+    if validation["valid"] and validation["access_granted"]:
+        print(" Token validated successfully")
+        print(" Access GRANTED to age-restricted content")
+        print(" Website learned only: 'user is adult'")
     else:
-        print(f"    ✗ Access denied: {validation_result.get('reason')}")
+        print(f"Access denied: {validation.get('reason')}")
     
+    # Summary
     print("\n" + "=" * 70)
-    print("  WORKFLOW COMPLETE - GDPR COMPLIANCE VERIFIED")
+    print("   WORKFLOW COMPLETE - GDPR COMPLIANCE")
     print("=" * 70)
-    print("\n  ✓ Image processed in memory only")
-    print("  ✓ No ID images stored")
-    print("  ✓ No DOB stored")
-    print("  ✓ Token contains only 'is_adult' boolean")
-    print("  ✓ Token is device-bound (cannot be shared)")
-    print("  ✓ Token expires in 30 days")
-    print("  ✓ Unlinkable across different websites")
+    print("\n No ID images stored")
+    print(" No DOB stored")
+    print(" Token contains only 'is_adult' boolean")
+    print(" Token is device-bound")
+    print(" Token expires in 30 days")
     print("\n" + "=" * 70 + "\n")
 
 
-if __name__ == "__main__":
-    # Setup logging
-    logging.basicConfig(
-        level=logging.INFO,
-        format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+# ============================================================================
+# MAIN
+# ============================================================================
+
+def main():
+    """Main entry point"""
+    parser = argparse.ArgumentParser(
+        description="Integrated Age Verification System",
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog="""
+Examples:
+  python integrated_system.py --demo
+  python integrated_system.py --audience "my-website.com"
+        """
     )
     
-    # Run demo
-    demo_complete_workflow()
+    parser.add_argument(
+        "--demo",
+        action="store_true",
+        help="Run demonstration workflow"
+    )
+    parser.add_argument(
+        "--audience",
+        type=str,
+        default="default",
+        help="Target audience for token (default: 'default')"
+    )
+    parser.add_argument(
+        "--validity-days",
+        type=int,
+        default=30,
+        help="Token validity in days (default: 30)"
+    )
+    parser.add_argument(
+        "--include-names",
+        action="store_true",
+        help="Include names in token (reduces privacy)"
+    )
+    
+    args = parser.parse_args()
+    
+    if args.demo:
+        run_demo()
+    else:
+        print("\nUsage: python integrated_system.py --demo")
+        print("\nThis module is designed to be imported by id_detection.py")
+        print("Run --demo to see the complete workflow demonstration")
+
+
+if __name__ == "__main__":
+    main()

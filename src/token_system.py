@@ -461,10 +461,10 @@ if __name__ == "__main__":
         audience="adult-website.com"
     )
     
-    print(f"   ✓ Token ID: {adult_token_data['token_id'][:16]}...")
-    print(f"   ✓ Expires: {adult_token_data['expires_at']}")
-    print(f"   ✓ QR Code: {adult_token_data['qr_code_path']}")
-    print(f"   ✓ Token (first 100 chars): {adult_token_data['token'][:100]}...")
+    print(f"Token ID: {adult_token_data['token_id'][:16]}...")
+    print(f"Expires: {adult_token_data['expires_at']}")
+    print(f"QR Code: {adult_token_data['qr_code_path']}")
+    print(f"Token (first 100 chars): {adult_token_data['token'][:100]}...")
     
     # Example: Minor user (16 years old)
     print("\n2. Generating token for MINOR user (16 years)...")
@@ -474,8 +474,8 @@ if __name__ == "__main__":
         audience="age-restricted-game.com"
     )
     
-    print(f"   ✓ Token ID: {minor_token_data['token_id'][:16]}...")
-    print(f"   ✓ Is Adult: {minor_token_data['is_adult']}")
+    print(f"Token ID: {minor_token_data['token_id'][:16]}...")
+    print(f"Is Adult: {minor_token_data['is_adult']}")
     
     # Export public key for websites
     print("\n3. Exporting public key for website verification...")
@@ -483,8 +483,8 @@ if __name__ == "__main__":
     public_key_path = Path("keys/public_key_for_websites.pem")
     with open(public_key_path, 'w') as f:
         f.write(public_key)
-    print(f"   ✓ Public key saved: {public_key_path}")
-    print(f"   ✓ Websites use this key to verify tokens")
+    print(f"Public key saved: {public_key_path}")
+    print(f"Websites use this key to verify tokens")
     
     # Simulate website validation
     print("\n4. Simulating website token validation...")
@@ -499,8 +499,8 @@ if __name__ == "__main__":
         token=adult_token_data['token'],
         audience="adult-website.com"
     )
-    print(f"      Valid: {result['valid']}")
-    print(f"      Access Granted: {result.get('access_granted', False)}")
+    print(f" Valid: {result['valid']}")
+    print(f" Access Granted: {result.get('access_granted', False)}")
     
     # Validate minor token
     print("\n   b) Validating MINOR token:")
@@ -508,9 +508,9 @@ if __name__ == "__main__":
         token=minor_token_data['token'],
         audience="age-restricted-game.com"
     )
-    print(f"      Valid: {result['valid']}")
-    print(f"      Access Granted: {result.get('access_granted', False)}")
-    print(f"      Reason: {result.get('reason', 'N/A')}")
+    print(f"Valid: {result['valid']}")
+    print(f"Access Granted: {result.get('access_granted', False)}")
+    print(f"Reason: {result.get('reason', 'N/A')}")
     
     # Test audience mismatch (unlinkability)
     print("\n   c) Testing audience mismatch (unlinkability):")
@@ -518,9 +518,9 @@ if __name__ == "__main__":
         token=adult_token_data['token'],
         audience="different-website.com"  # Wrong audience!
     )
-    print(f"      Valid: {result['valid']}")
-    print(f"      Reason: {result.get('reason')}")
+    print(f"Valid: {result['valid']}")
+    print(f"Reason: {result.get('reason')}")
     
     print("\n" + "=" * 60)
-    print("✓ Token system test complete!")
+    print("Token system test complete!")
     print("=" * 60)

@@ -17,7 +17,7 @@ IMPORTANT: Place this file in the same folder as:
 - id_detection.py (your detection code)
 - token_system.py (your token code)
 
-Option Run: python e2e_benchmark.py --image belgium-id-card.jpg
+Run: python e2e_benchmark.py --image belgium-id-card.jpg
 """
 
 import os
@@ -48,20 +48,20 @@ try:
         AgeInfo
     )
     DETECTION_IMPORT_SUCCESS = True
-    print("Imported detection code from id_detection.py")
+    print(" Imported detection code from id_detection.py")
 except ImportError as e:
     DETECTION_IMPORT_SUCCESS = False
-    print(f"Could not import id_detection.py: {e}")
+    print(f"✗ Could not import id_detection.py: {e}")
     print("  Make sure id_detection.py is in the same folder!")
 
 try:
     # Import token system
     from token_system import AgeVerificationToken, TokenConfig
     TOKEN_IMPORT_SUCCESS = True
-    print("Imported token system from token_system.py")
+    print(" Imported token system from token_system.py")
 except ImportError as e:
     TOKEN_IMPORT_SUCCESS = False
-    print(f"Could not import token_system.py: {e}")
+    print(f" Could not import token_system.py: {e}")
     print("  Will use embedded token implementation")
 
 
@@ -233,22 +233,22 @@ class E2EPipelineBenchmark:
         print("="*60)
         
         if not DETECTION_IMPORT_SUCCESS:
-            print("\n Cannot run benchmark without id_detection.py")
+            print("\n✗ Cannot run benchmark without id_detection.py")
             return False
         
         # Initialize your Config
-        print("\n Loading configuration...")
+        print("\n  Loading configuration...")
         self.detection_config = Config()
-        print(f" Config loaded (model: {self.detection_config.MODEL_PATH})")
+        print(f"  Config loaded (model: {self.detection_config.MODEL_PATH})")
         
         # Load YOLO model
-        print("\n Loading YOLOv8 model...")
+        print("\n  Loading YOLOv8 model...")
         load_start = time.perf_counter()
         try:
             from ultralytics import YOLO
             self.model = YOLO(self.detection_config.MODEL_PATH)
             load_time = (time.perf_counter() - load_start) * 1000
-            print(f" YOLOv8 loaded in {load_time:.0f}ms")
+            print(f"  YOLOv8 loaded in {load_time:.0f}ms")
         except Exception as e:
             print(f" Failed to load YOLO: {e}")
             return False
@@ -259,24 +259,24 @@ class E2EPipelineBenchmark:
         try:
             self.ocr_processor = OCRProcessor()
             load_time = (time.perf_counter() - load_start) * 1000
-            print(f"EasyOCR loaded in {load_time:.0f}ms")
+            print(f"  EasyOCR loaded in {load_time:.0f}ms")
         except Exception as e:
-            print(f"Failed to load OCR: {e}")
+            print(f" Failed to load OCR: {e}")
             return False
         
         # Load Token System
-        print("\n Loading Token System...")
+        print("\n  Loading Token System...")
         load_start = time.perf_counter()
         try:
             token_config = TokenConfig()
             self.token_generator = AgeVerificationToken(token_config)
             load_time = (time.perf_counter() - load_start) * 1000
-            print(f"Token system loaded in {load_time:.0f}ms")
+            print(f"  Token system loaded in {load_time:.0f}ms")
         except Exception as e:
-            print(f"Failed to load token system: {e}")
+            print(f" Failed to load token system: {e}")
             return False
         
-        print("\n All components loaded successfully!")
+        print("\n  All components loaded successfully!")
         return True
     
     def get_test_image(self):
@@ -287,10 +287,10 @@ class E2EPipelineBenchmark:
                 print(f"\n  Using test image: {path}")
                 frame = cv2.imread(str(path))
                 if frame is not None:
-                    print(f" Image loaded ({frame.shape[1]}x{frame.shape[0]})")
+                    print(f"  Image loaded ({frame.shape[1]}x{frame.shape[0]})")
                     return frame
                 else:
-                    print("Could not read image")
+                    print(f" Could not read image")
                     return None
             else:
                 print(f" Image not found: {path}")
@@ -304,7 +304,7 @@ class E2EPipelineBenchmark:
             
             cap = cv2.VideoCapture(self.detection_config.CAMERA_INDEX)
             if not cap.isOpened():
-                print("Could not open webcam")
+                print(" Could not open webcam")
                 return None
             
             captured_frame = None
@@ -343,12 +343,12 @@ class E2EPipelineBenchmark:
                 key = cv2.waitKey(1) & 0xFF
                 if key == ord(' '):  # SPACE to capture
                     captured_frame = frame.copy()
-                    print(f"Frame captured ({frame.shape[1]}x{frame.shape[0]})")
+                    print(f"  Frame captured ({frame.shape[1]}x{frame.shape[0]})")
                     if detected:
-                        print(f"Detected: {', '.join(detected)}")
+                        print(f"  Detected: {', '.join(detected)}")
                     break
                 elif key == ord('q'):  # Q to quit
-                    print("Cancelled by user")
+                    print(" Cancelled by user")
                     break
             
             cap.release()
@@ -508,13 +508,13 @@ class E2EPipelineBenchmark:
         
         # Setup
         if not self.setup():
-            print("\n Setup failed. Exiting.")
+            print("\n✗ Setup failed. Exiting.")
             return None
         
         # Get test image
         frame = self.get_test_image()
         if frame is None:
-            print("\n Could not get test image. Exiting.")
+            print("\n✗ Could not get test image. Exiting.")
             return None
         
         # Quick detection test
@@ -533,19 +533,19 @@ class E2EPipelineBenchmark:
                 dob_found = True
         
         if detected_items:
-            print(f"Detected: {', '.join(detected_items)}")
+            print(f"  Detected: {', '.join(detected_items)}")
             if dob_found:
-                print(" DOB meets benchmark threshold (≥0.70)")
+                print(f"  DOB meets benchmark threshold (≥0.70)")
             else:
-                print("DOB below threshold - OCR may not run")
+                print(f"   DOB below threshold - OCR may not run")
         else:
-            print("No fields detected! Results may be limited.")
+            print("   No fields detected! Results may be limited.")
         
         # Warmup runs
         print(f"\n  Running {self.config.warmup_iterations} warmup iterations...")
         for i in range(self.config.warmup_iterations):
             self.run_single_iteration(frame, -1)
-        print("Warmup complete")
+        print("  Warmup complete")
         
         # Benchmark runs
         print(f"\n  Running {self.config.num_iterations} benchmark iterations...")
@@ -614,7 +614,7 @@ class E2EPipelineBenchmark:
         successful = [r for r in timing_results if r.token_generated]
         if successful:
             sample = successful[0]
-            print("SAMPLE SUCCESSFUL ITERATION:")
+            print(f"\n SAMPLE SUCCESSFUL ITERATION:")
             print(f"   • DOB Confidence: {sample.dob_confidence:.2f}")
             print(f"   • OCR Text: {sample.ocr_text[:50]}..." if len(sample.ocr_text) > 50 else f"   • OCR Text: {sample.ocr_text}")
             print(f"   • Parsed Date: {sample.parsed_date}")
@@ -628,7 +628,7 @@ class E2EPipelineBenchmark:
             print(f"   • Date Parsing:      {self.results.date_parsing_stats.get('mean_ms', 0):>8.1f} ms  ({self.results.latency_breakdown.get('date_parsing_pct', 0):>5.1f}%)")
             print(f"   • Age Calculation:   {self.results.age_calculation_stats.get('mean_ms', 0):>8.1f} ms  ({self.results.latency_breakdown.get('age_calculation_pct', 0):>5.1f}%)")
             print(f"   • Token Generation:  {self.results.token_generation_stats.get('mean_ms', 0):>8.1f} ms  ({self.results.latency_breakdown.get('token_generation_pct', 0):>5.1f}%)")
-            print("─────────────────────────────────────")
+            print(f"   ─────────────────────────────────────")
             
             # Calculate total for successful iterations
             if successful:
@@ -636,14 +636,14 @@ class E2EPipelineBenchmark:
                 print(f"   • TOTAL (successful):{total_successful:>8.1f} ms  (100.0%)")
         else:
             print(f"   • YOLOv8 Detection:  {self.results.detection_stats.get('mean_ms', 0):>8.1f} ms")
-            print("   • (Other stages: no successful detections)")
+            print(f"   • (Other stages: no successful detections)")
         
         print("\n SUCCESS RATES:")
         print(f"   • DOB Detection:      {self.results.detection_success_rate}%")
         print(f"   • OCR Success:        {self.results.ocr_success_rate}%")
         print(f"   • Age Determination:  {self.results.age_determination_success_rate}%")
         
-        print("\n📊 LATENCY STATISTICS (All Iterations):")
+        print("\n LATENCY STATISTICS (All Iterations):")
         print(f"   • Mean:   {self.results.total_stats.get('mean_ms', 0):.1f} ms")
         print(f"   • Median: {self.results.total_stats.get('median_ms', 0):.1f} ms")
         print(f"   • Min:    {self.results.total_stats.get('min_ms', 0):.1f} ms")
@@ -659,19 +659,19 @@ class E2EPipelineBenchmark:
             ocr_pct = self.results.latency_breakdown.get('ocr_pct', 0)
             token_time = self.results.token_generation_stats.get('mean_ms', 0)
             
-            print("\n   Processing time [INSERT DURATION, e.g., 550-640ms]:")
+            print(f"\n   Processing time [INSERT DURATION, e.g., 550-640ms]:")
             print(f"   → {total_successful:.0f}ms (or ~{total_successful/1000:.2f} seconds)")
             
-            print("\n   OCR percentage [INSERT YOUR RESULT, e.g., ~70% of total time]:")
+            print(f"\n   OCR percentage [INSERT YOUR RESULT, e.g., ~70% of total time]:")
             print(f"   → {ocr_pct:.0f}% of total processing time")
             
-            print("\n   Token generation time:")
+            print(f"\n   Token generation time:")
             print(f"   → {token_time:.1f}ms")
             
-            print("\n   Success rate:")
+            print(f"\n   Success rate:")
             print(f"   → {self.results.age_determination_success_rate}%")
         else:
-            print("\n   ⚠ No successful iterations - cannot provide thesis values")
+            print("\n    No successful iterations - cannot provide thesis values")
             print("   Try with a clearer ID card image")
         
         print("\n" + "="*70 + "\n")
@@ -688,7 +688,7 @@ def main():
     args = parser.parse_args()
     
     if not args.image:
-        print("\n⚠ WARNING: No --image specified. Using webcam.")
+        print("\n WARNING: No --image specified. Using webcam.")
         print("  For best results, use: python e2e_benchmark.py --image your_id_card.jpg\n")
     
     config = E2EBenchmarkConfig(
