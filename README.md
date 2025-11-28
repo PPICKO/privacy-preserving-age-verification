@@ -124,7 +124,7 @@ yolo train model=yolov8s.pt data=idcard.yaml epochs=50 imgsz=640 batch=16
 ├── inference_simple.py         # Inference script with OCR
 ├── runs/
 │   └── detect/
-│       └── train8/
+│       └── train/
 │           └── weights/
 │               └── best.pt     # Trained model weights
 ├── images/                     # Training images
