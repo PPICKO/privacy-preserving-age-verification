@@ -297,6 +297,6 @@ If you use this work, please cite:
          AI-Based Identity Extraction and Encrypted Token Exchange},
   author={Pinto Ickowicz, Priscila},
   year={2026},
-  school={Universit{\'e} Libre de Bruxelles}
+  school={Université Libre de Bruxelles}
 }
 ```
