@@ -1,6 +1,5 @@
 """
 End-to-End Pipeline Benchmark (Integrated Version)
-Uses YOUR actual detection code from new_age_deb.py
 
 For thesis: "Privacy-Preserving Age Verification under GDPR"
 Author: Priscila PINTO ICKOWICZ
@@ -14,8 +13,8 @@ This script measures:
 6. Latency breakdown percentages
 
 IMPORTANT: Place this file in the same folder as:
-- id_detection.py (your detection code)
-- token_system.py (your token code)
+- id_detection.py 
+- token_system.py 
 
 Run: python e2e_benchmark.py --image belgium-id-card.jpg
 """
@@ -34,11 +33,11 @@ from typing import Dict, List, Optional
 import psutil
 
 # ============================================================================
-# IMPORT YOUR ACTUAL CODE
+# IMPORT  ACTUAL CODE
 # ============================================================================
 
 try:
-    # Import from your detection code
+    # Import from  detection code
     from id_detection import (
         Config, 
         IDCardDetector,
@@ -192,7 +191,7 @@ if not TOKEN_IMPORT_SUCCESS:
 # ============================================================================
 
 class E2EPipelineBenchmark:
-    """End-to-end pipeline benchmark using your actual code"""
+    """End-to-end pipeline benchmark using  actual code"""
     
     def __init__(self, config: E2EBenchmarkConfig = None):
         self.config = config or E2EBenchmarkConfig()
@@ -227,7 +226,7 @@ class E2EPipelineBenchmark:
         }
     
     def setup(self) -> bool:
-        """Initialize all components using your actual code"""
+        """Initialize all components using  actual code"""
         print("\n" + "="*60)
         print("SETUP: Loading models and components...")
         print("="*60)
@@ -236,7 +235,7 @@ class E2EPipelineBenchmark:
             print("\n[FAIL] Cannot run benchmark without id_detection.py")
             return False
         
-        # Initialize your Config
+        # Initialize  Config
         print("\n  Loading configuration...")
         self.detection_config = Config()
         print(f"  [OK] Config loaded (model: {self.detection_config.MODEL_PATH})")
@@ -253,7 +252,7 @@ class E2EPipelineBenchmark:
             print(f"  [FAIL] Failed to load YOLO: {e}")
             return False
         
-        # Load OCR using your OCRProcessor
+        # Load OCR using  OCRProcessor
         print("\n  Loading EasyOCR (via OCRProcessor)...")
         load_start = time.perf_counter()
         try:
@@ -460,7 +459,7 @@ class E2EPipelineBenchmark:
             for dob_info in dob_boxes:
                 x1, y1, x2, y2 = map(int, dob_info["box"])
                 
-                # Add padding (like your code does)
+                
                 pad = 10
                 h, w = frame.shape[:2]
                 x1 = max(0, x1 - pad)
@@ -471,7 +470,7 @@ class E2EPipelineBenchmark:
                 crop = frame[y1:y2, x1:x2]
                 
                 if crop.size > 0:
-                    # Use your OCRProcessor's read_text method
+                    # Use OCRProcessor's read_text method
                     texts = self.ocr_processor.read_text(crop)
                     ocr_texts.extend(texts)
         
@@ -479,13 +478,13 @@ class E2EPipelineBenchmark:
         result.ocr_text = " | ".join(ocr_texts) if ocr_texts else ""
         
         # ====================================================================
-        # STAGE 3: Date Parsing (using your DateParser)
+        # STAGE 3: Date Parsing (using  DateParser)
         # ====================================================================
         parsing_start = time.perf_counter()
         parsed_date = None
         
         if ocr_texts:
-            # Clean text using your method
+            # Clean text using  method
             cleaned_text = DateParser.clean_dob_text(
                 ocr_texts, 
                 self.detection_config.DOB_STOPWORDS
@@ -496,7 +495,7 @@ class E2EPipelineBenchmark:
                 print(f"    [DEBUG] OCR raw: {ocr_texts}")
                 print(f"    [DEBUG] Cleaned: '{cleaned_text}'")
             
-            # Parse date using your method
+            # Parse date using  method
             parsed_date = DateParser.parse_date(cleaned_text)
             
             if parsed_date:
@@ -564,7 +563,7 @@ class E2EPipelineBenchmark:
     def run_benchmark(self):
         """Run complete benchmark"""
         print("\n" + "="*70)
-        print("   END-TO-END PIPELINE BENCHMARK (Using Your Detection Code)")
+        print("   END-TO-END PIPELINE BENCHMARK (Using  Detection Code)")
         print("="*70)
         
         # Setup
@@ -723,7 +722,7 @@ class E2EPipelineBenchmark:
             print(f"\n   Processing time [INSERT DURATION, e.g., 550-640ms]:")
             print(f"   -> {total_successful:.0f}ms (or ~{total_successful/1000:.2f} seconds)")
             
-            print(f"\n   OCR percentage [INSERT YOUR RESULT, e.g., ~70% of total time]:")
+            print(f"\n   OCR percentage [INSERT  RESULT, e.g., ~70% of total time]:")
             print(f"   -> {ocr_pct:.0f}% of total processing time")
             
             print(f"\n   Token generation time:")
@@ -750,7 +749,7 @@ def main():
     
     if not args.image:
         print("\n[WARN] WARNING: No --image specified. Using webcam.")
-        print("  For best results, use: python e2e_benchmark.py --image your_id_card.jpg\n")
+        print("  For best results, use: python e2e_benchmark.py --image _id_card.jpg\n")
     
     config = E2EBenchmarkConfig(
         num_iterations=args.iterations,
