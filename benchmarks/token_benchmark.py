@@ -37,7 +37,7 @@ from cryptography.hazmat.backends import default_backend
 import psutil
 import os
 
-# Import your existing token system
+# Import  existing token system
 try:
     from token_system import (
         AgeVerificationToken, TokenConfig, TokenValidator, 
@@ -861,7 +861,7 @@ class TokenBenchmark:
         with open(output_path, 'w') as f:
             json.dump(asdict(self.results), f, indent=2, default=str)
         
-        print(f"\n Results saved to: {output_path}")
+        print(f"\n[OK] Results saved to: {output_path}")
     
     def _print_summary(self):
         """Print summary for thesis"""
@@ -869,25 +869,25 @@ class TokenBenchmark:
         print("   SUMMARY - VALUES FOR THESIS")
         print("="*70)
         
-        print("\n TOKEN VALIDATION METRICS:")
-        print(f" Average validation time: {self.results.validation_latency_stats.get('mean_ms', 'N/A'):.2f} ms")
-        print(f" Median validation time:  {self.results.validation_latency_stats.get('median_ms', 'N/A'):.2f} ms")
-        print(f" P99 validation time:     {self.results.validation_latency_stats.get('p99_ms', 'N/A'):.2f} ms")
+        print("\n-- TOKEN VALIDATION METRICS:")
+        print(f"   - Average validation time: {self.results.validation_latency_stats.get('mean_ms', 'N/A'):.2f} ms")
+        print(f"   - Median validation time:  {self.results.validation_latency_stats.get('median_ms', 'N/A'):.2f} ms")
+        print(f"   - P99 validation time:     {self.results.validation_latency_stats.get('p99_ms', 'N/A'):.2f} ms")
         
-        print(f"\n Expired token rejection:  {self.results.expired_token_rejection_rate:.0f}%")
-        print(f" Valid token acceptance:   {self.results.valid_token_acceptance_rate:.0f}%")
+        print(f"\n   - Expired token rejection:  {self.results.expired_token_rejection_rate:.0f}%")
+        print(f"   - Valid token acceptance:   {self.results.valid_token_acceptance_rate:.0f}%")
         
-        print("\n SCALABILITY METRICS:")
+        print("\n-- SCALABILITY METRICS:")
         for key, data in self.results.concurrent_validation_results.items():
-            print(f" {data['num_concurrent']:2d} concurrent users: "
+            print(f"   - {data['num_concurrent']:2d} concurrent users: "
                   f"{data['avg_latency_ms']:.1f}ms (+{data.get('vs_baseline_pct', 0):.0f}%)")
         
-        print("\n SECURITY METRICS:")
+        print("\n-- SECURITY METRICS:")
         for attack, data in self.results.security_test_results.items():
-            print(f" {attack}: {data['rejection_rate']:.0f}% rejection rate")
+            print(f"   - {attack}: {data['rejection_rate']:.0f}% rejection rate")
         
         print("\n" + "="*70)
-        print("   Copy these values to your thesis placeholders!")
+        print("   Copy these values to your thesis!")
         print("="*70 + "\n")
 
 
@@ -909,4 +909,4 @@ if __name__ == "__main__":
     benchmark = TokenBenchmark(config)
     results = benchmark.run_all_tests()
     
-    print("\n Benchmark complete! Check benchmark_results/token_metrics.json for full data.")
+    print("\n[OK] Benchmark complete! Check benchmark_results/token_metrics.json for full data.")
